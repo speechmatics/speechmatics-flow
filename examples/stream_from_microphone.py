@@ -25,7 +25,7 @@ client = WebsocketClient(
     ConnectionSettings(
         url="wss://flow.api.speechmatics.com/v1/flow",
         auth_token=AUTH_TOKEN,
-        ssl_context=None,
+        ssl_context=ssl_context,
     )
 )
 

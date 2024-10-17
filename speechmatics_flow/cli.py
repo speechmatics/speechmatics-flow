@@ -17,7 +17,7 @@ from websockets.exceptions import WebSocketException
 
 from speechmatics_flow.cli_parser import parse_args
 from speechmatics_flow.client import WebsocketClient
-from speechmatics_flow.exceptions import TranscriptionError
+from speechmatics_flow.exceptions import ConversationError
 from speechmatics_flow.models import (
     AudioSettings,
     ConversationConfig,
@@ -67,15 +67,14 @@ def get_connection_settings(args):
     :type args: dict
 
     :return: Settings for the WebSocket connection.
-    :rtype: speechmatics_flow.models.ConnectionSettings
+    :rtype: models.ConnectionSettings
     """
     auth_token = args.get("auth_token")
     url = args.get("url")
-    generate_temp_token = args.get("generate_temp_token")
     settings = ConnectionSettings(
         url=url,
         auth_token=auth_token,
-        generate_temp_token=generate_temp_token,
+        generate_temp_token=args.get("generate_temp_token") == "true",
     )
 
     if args.get("buffer_size") is not None:
@@ -101,7 +100,7 @@ def get_conversation_config(
     :type args: Dict
 
     :return: Settings for the ASR engine.
-    :rtype: flow.models.ConversationConfig
+    :rtype: models.ConversationConfig
     """
 
     config: Dict[str, Any] = {}
@@ -124,7 +123,7 @@ def get_audio_settings(args):
         args (dict): Keyword arguments, typically from the command line.
 
     Returns:
-        flow.models.AudioSettings: Settings for the audio stream
+        models.AudioSettings: Settings for the audio stream
             in the connection.
     """
     settings = AudioSettings(
@@ -211,7 +210,7 @@ def main(args=None):
 
     try:
         flow_main(args)
-    except (KeyboardInterrupt, ValueError, TranscriptionError, KeyError) as error:
+    except (KeyboardInterrupt, ValueError, ConversationError, KeyError) as error:
         LOGGER.info(error, exc_info=True)
         sys.exit(f"{type(error).__name__}: {error}")
     except FileNotFoundError as error:

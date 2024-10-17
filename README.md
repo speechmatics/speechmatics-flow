@@ -30,7 +30,7 @@ python setup.py install --user
 *Note: Requires access to microphone
 
  ```bash
- speechmatics-flow --url $URL --auth-token $TOKEN -
+ speechmatics-flow --url $URL --auth-token $TOKEN --ssl-mode insecure
  ```
 
 ## Support
