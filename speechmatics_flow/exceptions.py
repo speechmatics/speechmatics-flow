@@ -4,15 +4,9 @@ Exceptions and errors used by the library.
 """
 
 
-class TranscriptionError(Exception):
+class ConversationError(Exception):
     """
-    Indicates an error in transcription.
-    """
-
-
-class EndOfTranscriptException(Exception):
-    """
-    Indicates that the transcription session has finished.
+    Indicates an error in flow conversation session.
     """
 
 
@@ -25,5 +19,5 @@ class ForceEndSession(Exception):
 
 class ConversationEndedException(Exception):
     """
-    Indicates the session ended.
+    Indicates the conversation session ended.
     """

@@ -16,9 +16,8 @@ import websockets
 
 from speechmatics_flow.exceptions import (
     ConversationEndedException,
-    EndOfTranscriptException,
     ForceEndSession,
-    TranscriptionError,
+    ConversationError,
 )
 from speechmatics_flow.models import (
     ClientMessageType,
@@ -67,14 +66,15 @@ class WebsocketClient:
 
         self.seq_no = 0
         self.session_running = False
-        self._language_pack_info = None
-        self._transcription_config_needs_update = False
+        self.conversation_ended_wait_timeout = 5
         self._session_needs_closing = False
         self._audio_buffer = None
+        self._pyaudio = pyaudio.PyAudio
 
         # The following asyncio fields are fully instantiated in
         # _init_synchronization_primitives
         self._conversation_started = asyncio.Event
+        self._conversation_ended = asyncio.Event
         # Semaphore used to ensure that we don't send too much audio data to
         # the server too quickly and burst any buffers downstream.
         self._buffer_semaphore = asyncio.BoundedSemaphore
@@ -85,6 +85,8 @@ class WebsocketClient:
         an event loop
         """
         self._conversation_started = asyncio.Event()
+        self._conversation_ended = asyncio.Event()
+        self._pyaudio = pyaudio.PyAudio()
         self._buffer_semaphore = asyncio.BoundedSemaphore(
             self.connection_settings.message_buffer_size
         )
@@ -98,6 +100,16 @@ class WebsocketClient:
         as started meaning, AddAudio is now allowed.
         """
         self._conversation_started.set()
+
+    def _flag_conversation_ended(self):
+        """
+        Handle a
+        :py:attr:`models.ClientMessageType.ConversationEnded`
+        message from the server.
+        This updates an internal flag to mark the session ended
+        and server connection is closed
+        """
+        self._conversation_ended.set()
 
     @json_utf8
     def _start_conversation(self):
@@ -130,6 +142,15 @@ class WebsocketClient:
         LOGGER.debug(msg)
         return msg
 
+    async def _wait_for_conversation_ended(self):
+        """
+        Waits for :py:attr:`models.ClientMessageType.ConversationEnded`
+        message from the server.
+        """
+        await asyncio.wait_for(
+            self._conversation_ended.wait(), self.conversation_ended_wait_timeout
+        )
+
     async def _consumer(self, message, from_cli: False):
         """
         Consumes messages and acts on them.
@@ -137,9 +158,10 @@ class WebsocketClient:
         :param message: Message received from the server.
         :type message: str
 
-        :raises TranscriptionError: on an error message received from the
+        :raises ConversationError on an error message received from the
             server after the Session started.
-        :raises EndOfTranscriptException: on EndOfTranscription message.
+        :raises ConversationEndedException: on models.ServerMessageType.ConversationEnded message
+            received from the server.
         :raises ForceEndSession: If this was raised by the user's event
             handler.
         """
@@ -170,20 +192,22 @@ class WebsocketClient:
         elif message_type == ServerMessageType.AudioAdded:
             self._buffer_semaphore.release()
         elif message_type == ServerMessageType.ConversationEnded:
+            self._flag_conversation_ended()
             raise ConversationEndedException()
-        elif message_type == ServerMessageType.EndOfTranscript:
-            raise EndOfTranscriptException()
         elif message_type == ServerMessageType.Warning:
             LOGGER.warning(message["reason"])
         elif message_type == ServerMessageType.Error:
-            raise TranscriptionError(message["reason"])
+            raise ConversationError(message["reason"])
 
     async def _read_from_microphone(self):
-        p = pyaudio.PyAudio()
-        print(f"Default input device: {p.get_default_input_device_info()['name']}")
-        print(f"Default output device: {p.get_default_output_device_info()['name']}")
+        print(
+            f"Default input device: {self._pyaudio.get_default_input_device_info()['name']}"
+        )
+        print(
+            f"Default output device: {self._pyaudio.get_default_output_device_info()['name']}"
+        )
         print("Start speaking...")
-        stream = p.open(
+        stream = self._pyaudio.open(
             format=pyaudio.paInt16,
             channels=1,
             rate=self.audio_settings.sample_rate,
@@ -191,7 +215,7 @@ class WebsocketClient:
         )
         try:
             while True:
-                if self._session_needs_closing:
+                if self._session_needs_closing or self._conversation_ended.is_set():
                     break
 
                 await asyncio.wait_for(
@@ -205,11 +229,13 @@ class WebsocketClient:
                 self.seq_no += 1
                 self._call_middleware(ClientMessageType.AddAudio, audio_chunk, True)
                 await self.websocket.send(audio_chunk)
-        finally:
+        except KeyboardInterrupt:
             await self.websocket.send(self._end_of_audio())
+        finally:
+            await self._wait_for_conversation_ended()
             stream.stop_stream()
             stream.close()
-            p.terminate()
+            self._pyaudio.terminate()
 
     async def _consumer_handler(self, from_cli: False):
         """
@@ -231,9 +257,8 @@ class WebsocketClient:
 
     async def _stream_producer(self, stream, audio_chunk_size):
         async for audio_chunk in read_in_chunks(stream, audio_chunk_size):
-            if self._session_needs_closing:
+            if self._session_needs_closing or self._conversation_ended.is_set():
                 break
-
             await asyncio.wait_for(
                 self._buffer_semaphore.acquire(),
                 timeout=self.connection_settings.semaphore_timeout_seconds,
@@ -248,7 +273,6 @@ class WebsocketClient:
         Controls the producer loop for sending messages to the server.
         """
         await self._conversation_started.wait()
-
         if interactions[0].stream.name == "<stdin>":
             return await self._read_from_microphone()
 
@@ -265,13 +289,13 @@ class WebsocketClient:
                 interaction.callback(self)
 
         await self.websocket.send(self._end_of_audio())
+        await self._wait_for_conversation_ended()
 
     async def _playback_handler(self):
         """
         Reads audio binary messages from the playback buffer and plays them to the user.
         """
-        p = pyaudio.PyAudio()
-        stream = p.open(
+        stream = self._pyaudio.open(
             format=pyaudio.paInt16,
             channels=1,
             rate=self.audio_settings.sample_rate,
@@ -279,7 +303,7 @@ class WebsocketClient:
         )
         try:
             while True:
-                if self._session_needs_closing:
+                if self._session_needs_closing or self._conversation_ended.is_set():
                     break
                 try:
                     audio_message = await self._audio_buffer.get()
@@ -291,8 +315,7 @@ class WebsocketClient:
         finally:
             stream.close()
             stream.stop_stream()
-            p.terminate()
-            LOGGER.debug("Exiting playback handler")
+            self._pyaudio.terminate()
 
     def _call_middleware(self, event_name, *args):
         """
@@ -416,11 +439,7 @@ class WebsocketClient:
             exc = task.exception()
             if exc and not isinstance(
                 exc,
-                (
-                    EndOfTranscriptException,
-                    ForceEndSession,
-                    ConversationEndedException,
-                ),
+                (ForceEndSession, ConversationEndedException),
             ):
                 raise exc
 
@@ -450,14 +469,15 @@ class WebsocketClient:
             consumer/producer tasks.
         """
         self.seq_no = 0
-        self._language_pack_info = None
         self.conversation_config = conversation_config
         self.audio_settings = audio_settings
 
         await self._init_synchronization_primitives()
 
         extra_headers = {}
-        auth_token = await get_temp_token(self.connection_settings.auth_token)
+        auth_token = self.connection_settings.auth_token
+        if auth_token and self.connection_settings.generate_temp_token:
+            auth_token = await get_temp_token(auth_token)
         extra_headers["Authorization"] = f"Bearer {auth_token}"
         try:
             async with websockets.connect(  # pylint: disable=no-member

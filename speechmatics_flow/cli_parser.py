@@ -51,8 +51,8 @@ def get_arg_parser():
     )
     parser.add_argument(
         "--generate-temp-token",
-        default=True,
-        action="store_true",
+        default="true",
+        choices=["true", "false"],
         help="Automatically generate a temporary token for authentication.",
     )
     parser.add_argument(
