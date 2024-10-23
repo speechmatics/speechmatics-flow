@@ -16,7 +16,6 @@ from speechmatics_flow.models import (
 
 AUTH_TOKEN = "YOUR TOKEN HERE"
 
-
 # Create a websocket client
 ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
@@ -29,45 +28,48 @@ client = WebsocketClient(
     )
 )
 
-# Create a buffer to store binary messages sent from the server
-audio_buffer = io.BytesIO()
+
+# Create an asyncio queue to store audio data
+audio_queue = asyncio.Queue()
 
 
-# Create callback function which adds binary messages to audio buffer
+# Create a callback function to add binary messages to the audio queue
 def binary_msg_handler(msg: bytes):
     if isinstance(msg, (bytes, bytearray)):
-        audio_buffer.write(msg)
+        audio_queue.put_nowait(msg)
 
 
-# Register the callback to be called when the client receives an audio message from the server
+# Register the callback to be called when the client receives an audio message
 client.add_event_handler(ServerMessageType.audio, binary_msg_handler)
 
 
 async def audio_playback():
-    """Read from buffer and play audio back to the user"""
+    """Continuously read from the audio queue and play audio back to the user."""
     p = pyaudio.PyAudio()
-    stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, output=True)
+    chunk_size = 1024
+    player_stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, output=True)
+
     try:
         while True:
-            # Get the current value from the buffer
-            audio_to_play = audio_buffer.getvalue()
-            # Only proceed if there is audio data to play
-            if audio_to_play:
-                # Write the audio to the stream
-                stream.write(audio_to_play)
-                audio_buffer.seek(0)
-                audio_buffer.truncate(0)
-            # Pause briefly before checking the buffer again
-            await asyncio.sleep(0.05)
+            # Create a new playback buffer for each iteration
+            playback_buffer = io.BytesIO()
+
+            # Fill the buffer until it has enough data
+            while playback_buffer.tell() < chunk_size:
+                playback_buffer.write(await audio_queue.get())
+
+            # Write the full buffer contents to the player stream
+            player_stream.write(playback_buffer.getvalue())
     finally:
-        stream.close()
-        stream.stop_stream()
+        player_stream.stop_stream()
+        player_stream.close()
         p.terminate()
 
 
 async def main():
+    """Main function to run both the WebSocket client and audio playback."""
     tasks = [
-        # Use the websocket to connect to Flow Service and start a conversation
+        # Start the WebSocket client and conversation
         asyncio.create_task(
             client.run(
                 interactions=[Interaction(sys.stdin.buffer)],
@@ -75,11 +77,12 @@ async def main():
                 conversation_config=ConversationConfig(),
             )
         ),
-        # Run audio playback handler which streams audio from audio buffer
+        # Start the audio playback handler
         asyncio.create_task(audio_playback()),
     ]
 
     await asyncio.gather(*tasks)
 
 
+# Run the main event loop
 asyncio.run(main())

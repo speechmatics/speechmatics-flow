@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.0.3] - 2024-10-23
+
+### Changed
+
+- PyAudio class is instantiated only when the client is started directly from the CLI.
+- Simplified microphone example
+
+### Fixed
+
+- Choppy audio playback on some systems using Python 3.12+
+- Latency issues on some systems using Python 3.12+
+
 ## [0.0.2] - 2024-10-17
 
 ### Added

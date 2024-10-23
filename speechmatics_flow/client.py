@@ -69,7 +69,6 @@ class WebsocketClient:
         self.conversation_ended_wait_timeout = 5
         self._session_needs_closing = False
         self._audio_buffer = None
-        self._pyaudio = pyaudio.PyAudio
 
         # The following asyncio fields are fully instantiated in
         # _init_synchronization_primitives
@@ -86,7 +85,6 @@ class WebsocketClient:
         """
         self._conversation_started = asyncio.Event()
         self._conversation_ended = asyncio.Event()
-        self._pyaudio = pyaudio.PyAudio()
         self._buffer_semaphore = asyncio.BoundedSemaphore(
             self.connection_settings.message_buffer_size
         )
@@ -165,7 +163,6 @@ class WebsocketClient:
         :raises ForceEndSession: If this was raised by the user's event
             handler.
         """
-        LOGGER.debug(message)
         if isinstance(message, (bytes, bytearray)):
             # add an audio message to local buffer only when running from cli
             if from_cli:
@@ -174,6 +171,7 @@ class WebsocketClient:
             # so we need to set it here for event_handler to work
             message_type = ServerMessageType.audio
         else:
+            LOGGER.debug(message)
             message = json.loads(message)
             message_type = message.get("message")
 
@@ -200,14 +198,15 @@ class WebsocketClient:
             raise ConversationError(message["reason"])
 
     async def _read_from_microphone(self):
+        _pyaudio = pyaudio.PyAudio()
         print(
-            f"Default input device: {self._pyaudio.get_default_input_device_info()['name']}"
+            f"Default input device: {_pyaudio.get_default_input_device_info()['name']}"
         )
         print(
-            f"Default output device: {self._pyaudio.get_default_output_device_info()['name']}"
+            f"Default output device: {_pyaudio.get_default_output_device_info()['name']}"
         )
         print("Start speaking...")
-        stream = self._pyaudio.open(
+        stream = _pyaudio.open(
             format=pyaudio.paInt16,
             channels=1,
             rate=self.audio_settings.sample_rate,
@@ -229,13 +228,15 @@ class WebsocketClient:
                 self.seq_no += 1
                 self._call_middleware(ClientMessageType.AddAudio, audio_chunk, True)
                 await self.websocket.send(audio_chunk)
+                # send audio at a constant rate
+                await asyncio.sleep(0.01)
         except KeyboardInterrupt:
             await self.websocket.send(self._end_of_audio())
         finally:
             await self._wait_for_conversation_ended()
             stream.stop_stream()
             stream.close()
-            self._pyaudio.terminate()
+            _pyaudio.terminate()
 
     async def _consumer_handler(self, from_cli: False):
         """
@@ -295,7 +296,8 @@ class WebsocketClient:
         """
         Reads audio binary messages from the playback buffer and plays them to the user.
         """
-        stream = self._pyaudio.open(
+        _pyaudio = pyaudio.PyAudio()
+        stream = _pyaudio.open(
             format=pyaudio.paInt16,
             channels=1,
             rate=self.audio_settings.sample_rate,
@@ -309,13 +311,15 @@ class WebsocketClient:
                     audio_message = await self._audio_buffer.get()
                     stream.write(audio_message)
                     self._audio_buffer.task_done()
+                    # read from buffer at a constant rate
+                    await asyncio.sleep(0.005)
                 except Exception as e:
                     LOGGER.error(f"Error during audio playback: {e}")
                     raise e
         finally:
             stream.close()
             stream.stop_stream()
-            self._pyaudio.terminate()
+            _pyaudio.terminate()
 
     def _call_middleware(self, event_name, *args):
         """
