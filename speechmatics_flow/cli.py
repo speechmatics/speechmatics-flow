@@ -174,21 +174,17 @@ def add_printing_handlers(
         if print_json:
             print(json.dumps(message))
             return
-        new_response = message["prompt"]["response"]
+        new_response = message["content"]
         new_plaintext_response = new_response.replace("<sb> ", "").replace("</sb> ", "")
         if new_plaintext_response:
             sys.stdout.write(f"{escape_seq}{new_plaintext_response}\n")
         transcripts.user_transcript += new_plaintext_response
 
-    def end_of_transcript_handler(_):
-        print("\n", file=sys.stderr)
-
-    api.add_event_handler(ServerMessageType.prompt, prompt_handler)
+    api.add_event_handler(ServerMessageType.ResponseStarted, prompt_handler)
     api.add_event_handler(ServerMessageType.AddTranscript, transcript_handler)
     api.add_event_handler(
         ServerMessageType.AddPartialTranscript, partial_transcript_handler
     )
-    api.add_event_handler(ServerMessageType.EndOfTranscript, end_of_transcript_handler)
 
 
 # pylint: disable=too-many-branches

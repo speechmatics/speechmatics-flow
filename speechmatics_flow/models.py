@@ -84,8 +84,12 @@ class ClientMessageType(str, Enum):
     """Initiates a conversation job based on configuration set previously."""
 
     AddAudio = "AddAudio"
-    """Adds more audio data to the recognition job. The server confirms
+    """Implicit name for all outbound binary messages. The server confirms
     receipt by sending an :py:attr:`ServerMessageType.AudioAdded` message."""
+
+    AudioReceived = "AudioReceived"
+    """Client response to :py:attr:`ServerMessageType.AddAudio`, indicating
+    that audio has been added successfully."""
 
     AudioEnded = "AudioEnded"
     """Indicates audio input has finished."""
@@ -111,19 +115,38 @@ class ServerMessageType(str, Enum):
     AddTranscript = "AddTranscript"
     """Indicates the final transcript of a part of the audio."""
 
+    ResponseStarted = "ResponseStarted"
+    """
+    Indicates the start of TTS audio streaming from the server.
+    The message contains the textual content of the utterance to be spoken.
+    """
+
+    ResponseCompleted = "ResponseCompleted"
+    """Indicates the completion of TTS audio transmission from the server.
+    The message includes the textual content of the utterance just spoken.
+    """
+
+    ResponseInterrupted = "ResponseInterrupted"
+    """Indicates an interruption in the TTS audio stream from the server.
+    The message contains the textual content up to the point where the utterance was stopped.
+    """
+
+    AddAudio = "AddAudio"
+    """Implicit name for all outbound binary messages. The client confirms
+    receipt by sending an :py:attr:`ServerMessageType.AudioReceived` message."""
+
     audio = "audio"
     """Message contains binary data"""
 
     prompt = "prompt"
     """Message contains text data"""
 
+    ConversationEnding = "ConversationEnding"
+    """Indicates the session will continue in one-sided mode
+    during TTS playback of the final words."""
+
     ConversationEnded = "ConversationEnded"
     """Message indicates the session ended."""
-
-    EndOfTranscript = "EndOfTranscript"
-    """Server response to :py:attr:`ClientMessageType.EndOfStream`,
-    after the server has finished sending all :py:attr:`AddTranscript`
-    messages."""
 
     Info = "Info"
     """Indicates a generic info message."""

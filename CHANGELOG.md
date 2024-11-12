@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.0.4] - 2024-11-12
+
+### Added
+
+- `ResponseStarted`: Indicates the start of TTS audio streaming from the server.
+  The message contains the textual content of the utterance to be spoken.
+- `ResponseInterrupted`: Indicates an interruption in the TTS audio stream from the server.
+  The message contains the textual content up to the point where the utterance was stopped.
+- `ResponseCompleted`: Indicates the completion of TTS audio transmission from the server.
+- `ConversationEnding`: Indicates the session will continue in one-sided mode during TTS playback of the final words.
+  The message includes the textual content of the utterance just spoken.
+- `AddAudio`: Implicit name for all inbound binary messages.
+  The client confirms receipt by sending an `ServerMessageType.AudioReceived` message.
+- `AudioReceived`: Response to `ServerMessageType.AddAudio`, indicating that audio has been added successfully.
+- Deprecation warning for `audio` (replaced by AddAudio) and `prompt` (replaced by Response*) messages
+
+### Removed
+
+- Unused `EndOfTranscript` server message
+
 ## [0.0.3] - 2024-10-23
 
 ### Changed

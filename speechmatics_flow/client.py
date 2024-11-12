@@ -64,7 +64,8 @@ class WebsocketClient:
         self.event_handlers = {x: [] for x in ServerMessageType}
         self.middlewares = {x: [] for x in ClientMessageType}
 
-        self.seq_no = 0
+        self.client_seq_no = 0
+        self.server_seq_no = 0
         self.session_running = False
         self.conversation_ended_wait_timeout = 5
         self._session_needs_closing = False
@@ -135,8 +136,24 @@ class WebsocketClient:
         :py:attr:`models.ClientMessageType.AudioEnded`
         message.
         """
-        msg = {"message": ClientMessageType.AudioEnded, "last_seq_no": self.seq_no}
+        msg = {
+            "message": ClientMessageType.AudioEnded,
+            "last_seq_no": self.client_seq_no,
+        }
         self._call_middleware(ClientMessageType.AudioEnded, msg, False)
+        LOGGER.debug(msg)
+        return msg
+
+    @json_utf8
+    def _audio_received(self):
+        """Constructs an :py:attr:`models.ClientMessageType.AudioReceived` message."""
+        self.server_seq_no += 1
+        msg = {
+            "message": ClientMessageType.AudioReceived,
+            "seq_no": self.server_seq_no,
+            "buffering": 0.01,  # 10ms
+        }
+        self._call_middleware(ClientMessageType.AudioReceived, msg, False)
         LOGGER.debug(msg)
         return msg
 
@@ -164,12 +181,15 @@ class WebsocketClient:
             handler.
         """
         if isinstance(message, (bytes, bytearray)):
+            # Send ack as soon as we receive audio
+            await self.websocket.send(self._audio_received())
             # add an audio message to local buffer only when running from cli
             if from_cli:
                 await self._audio_buffer.put(message)
-            # Flow service does not send message_type with binary data,
-            # so we need to set it here for event_handler to work
-            message_type = ServerMessageType.audio
+            # Implicit name for all inbound binary messages.
+            # We must manually set it for event handler subscribed
+            # to `ServerMessageType.AddAudio` messages to work.
+            message_type = ServerMessageType.AddAudio
         else:
             LOGGER.debug(message)
             message = json.loads(message)
@@ -225,7 +245,7 @@ class WebsocketClient:
                 # audio_chunk size is 128 * 2 = 256 bytes which is about 8ms
                 audio_chunk = stream.read(num_frames=128, exception_on_overflow=False)
 
-                self.seq_no += 1
+                self.client_seq_no += 1
                 self._call_middleware(ClientMessageType.AddAudio, audio_chunk, True)
                 await self.websocket.send(audio_chunk)
                 # send audio at a constant rate
@@ -265,7 +285,7 @@ class WebsocketClient:
                 timeout=self.connection_settings.semaphore_timeout_seconds,
             )
 
-            self.seq_no += 1
+            self.client_seq_no += 1
             self._call_middleware(ClientMessageType.AddAudio, audio_chunk, True)
             yield audio_chunk
 
@@ -342,13 +362,13 @@ class WebsocketClient:
         the handler will be added for every event.
 
         For example, a simple handler that just LOGGER.debugs out the
-        :py:attr:`models.ServerMessageType.audio`
+        :py:attr:`models.ServerMessageType.ConversationStarted`
         messages received:
 
         >>> client = WebsocketClient(
                 ConnectionSettings(url="wss://localhost:9000"))
         >>> handler = lambda msg: LOGGER.debug(msg)
-        >>> client.add_event_handler(ServerMessageType.audio, handler)
+        >>> client.add_event_handler(ServerMessageType.ConversationStarted, handler)
 
         :param event_name: The name of the message for which a handler is
                 being added. Refer to
@@ -362,15 +382,30 @@ class WebsocketClient:
 
         :raises ValueError: If the given event name is not valid.
         """
+        # TODO: Remove when no longer supported
+        if event_name in [ServerMessageType.audio, ServerMessageType.prompt]:
+            LOGGER.warning(
+                f"DeprecationWarning: '{event_name}' is deprecated and will be removed in future versions."
+            )
+
         if event_name == "all":
+            # Iterate through event handlers, excluding deprecated ServerMessageType.audio.
             for name in self.event_handlers.keys():
+                if (
+                    name == ServerMessageType.audio
+                ):  # TODO: Remove when no longer supported
+                    continue
                 self.event_handlers[name].append(event_handler)
         elif event_name not in self.event_handlers:
             raise ValueError(
-                f"Unknown event name: {event_name!r}, expected to be "
-                f"'all' or one of {list(self.event_handlers.keys())}."
+                f"Unknown event name: '{event_name}'. Expected 'all' or one of {list(self.event_handlers.keys())}."
             )
         else:
+            # Map deprecated ServerMessageType.audio to ServerMessageType.AddAudio for compatibility.
+            if (
+                event_name == ServerMessageType.audio
+            ):  # TODO: Remove when no longer supported
+                event_name = ServerMessageType.AddAudio
             self.event_handlers[event_name].append(event_handler)
 
     def add_middleware(self, event_name, middleware):
@@ -472,7 +507,8 @@ class WebsocketClient:
         :raises Exception: Can raise any exception returned by the
             consumer/producer tasks.
         """
-        self.seq_no = 0
+        self.client_seq_no = 0
+        self.server_seq_no = 0
         self.conversation_config = conversation_config
         self.audio_settings = audio_settings
 
