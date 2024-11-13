@@ -10,7 +10,6 @@ import ssl
 import sys
 from dataclasses import dataclass
 from socket import gaierror
-from typing import Any, Dict
 
 import httpx
 from websockets.exceptions import WebSocketException
@@ -25,6 +24,7 @@ from speechmatics_flow.models import (
     Interaction,
     ConnectionSettings,
 )
+from speechmatics_flow.templates import TemplateOptions
 
 LOGGER = logging.getLogger(__name__)
 
@@ -99,17 +99,22 @@ def get_conversation_config(
     :param args: Keyword arguments probably from the command line.
     :type args: Dict
 
-    :return: Settings for the ASR engine.
+    :return: Settings for the Flow engine.
     :rtype: models.ConversationConfig
     """
 
-    config: Dict[str, Any] = {}
+    config = {}
+    # First, get configuration from the config file if provided.
     if args.get("config_file"):
         with open(args["config_file"], encoding="utf-8") as config_file:
             config = json.load(config_file)
 
     if config.get("conversation_config"):
-        config.update(config.pop("conversation_config"))
+        config = config["conversation_config"]
+
+    # Command line arguments override values from config file
+    if assistant := args.get("assistant"):
+        config["template_id"] = TemplateOptions.get(assistant)
 
     return ConversationConfig(**config)
 

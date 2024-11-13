@@ -5,6 +5,8 @@ Parsers used by the CLI to handle CLI arguments
 import argparse
 import logging
 
+from speechmatics_flow.templates import TemplateOptions
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -109,6 +111,21 @@ def get_arg_parser():
             "Print the JSON partial & final transcripts received rather than "
             "plaintext messages."
         ),
+    )
+    parser.add_argument(
+        "--config-file",
+        dest="config_file",
+        type=str,
+        default=None,
+        help="Read the conversation config from a file."
+        " If you provide this, all other config options work as overrides.",
+    )
+    parser.add_argument(
+        "--assistant",
+        default=None,
+        type=str,
+        choices=[k for k in TemplateOptions.keys()],
+        help="Choose your assistant.",
     )
 
     return parser

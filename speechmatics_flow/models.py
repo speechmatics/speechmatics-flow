@@ -7,7 +7,9 @@ import io
 import ssl
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Callable, Dict, Optional, Literal
+from typing import Callable, Dict, Optional
+
+from speechmatics_flow.templates import TemplateID
 
 
 @dataclass
@@ -62,9 +64,7 @@ class ConnectionSettings:
 class ConversationConfig:
     """Defines configuration parameters for conversation requests."""
 
-    template_id: Literal[
-        "default", "flow-service-assistant-amelia", "flow-service-assistant-humphrey"
-    ] = "default"
+    template_id: TemplateID = "default"
     """Name of a predefined template."""
 
     template_variables: Optional[Dict[str, str]] = None
@@ -160,7 +160,30 @@ class ServerMessageType(str, Enum):
 
 @dataclass
 class Interaction:
-    """Defines various interactions between client and server."""
+    """
+    Defines a single interaction between a client and a server, typically
+    used to handle non-continuous streams such as an audio file. This class
+    enables the server to respond after the stream has finished or based
+    on the specified callback function, allowing flexibility in connection
+    handling after streaming.
+
+    Attributes:
+        stream (io.BufferedReader): The audio stream to be sent to the server.
+        callback (Optional[Callable]): An optional function to be executed when
+            the audio stream ends. This can be used to delay connection closure
+            or perform additional actions upon stream completion.
+
+    Examples:
+        Keep the connection open for an additional 2 seconds after streaming
+        an audio file, allowing time for the server to respond.
+
+        ```python
+        Interaction(audio_stream, callback=lambda x: time.sleep(2))
+        ```
+    """
 
     stream: io.BufferedReader
+    """The audio stream to be sent to the server."""
+
     callback: Optional[Callable] = None
+    """An optional function to be executed when the audio stream ends."""

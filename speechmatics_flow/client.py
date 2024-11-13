@@ -198,6 +198,10 @@ class WebsocketClient:
         if message_type is None:
             return
 
+        if message_type not in self.event_handlers:
+            LOGGER.warning(f"Unknown message type {message_type!r}")
+            return
+
         for handler in self.event_handlers[message_type]:
             try:
                 handler(copy.deepcopy(message))

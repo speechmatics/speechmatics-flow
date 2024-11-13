@@ -33,6 +33,39 @@ python setup.py install --user
  speechmatics-flow --url $URL --auth-token $TOKEN --ssl-mode insecure
  ```
 
+### Change Assistant (Amelia → Humphrey)
+
+To set the assistant to *Humphrey* instead of *Amelia* run this command:
+
+```bash
+speechmatics-flow --url $URL --auth-token $TOKEN --ssl-mode insecure --assistant humphrey
+```
+
+### Load conversation_config from a config file
+
+Instead of manually setting up conversation parameters, you can load them from a configuration file.
+
+Create a JSON file with the template details, for example "conversation_config.json" and run flow client
+using the `--config-file` option
+
+```json
+{
+  "template_id": "flow-service-assistant-humphrey",
+  "template_variables": {
+    "persona": "You are an English butler named Humphrey.",
+    "style": "Be charming but unpredictable.",
+    "context": "You are taking a customer's order at a fast food restaurant."
+  }
+}
+```
+
+ ```bash
+ speechmatics-flow --url $URL --auth-token $TOKEN --ssl-mode insecure --config-file conversation_config.json
+ ```
+
+> **Hint**: Why limit Humphrey? Try changing the template_variables to see what happens if he’s not a butler but
+> perhaps... a pirate, a celebrity chef, or a royal advisor. We won’t stop you. 🏴‍☠️
+
 ## Support
 
 If you have any issues with this library or encounter any bugs then please get in touch with us at
