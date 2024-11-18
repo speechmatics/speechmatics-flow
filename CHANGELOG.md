@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.0.6] - 2024-11-18
+
+### Added
+
+- `tools` parameter: Introduced in the `client.run()` function to enable custom tool functionality.
+- `ToolFunctionParam` class: Added for enhanced type-checking when building client functions.
+- New message types: `ToolInvoke` and `ToolResult` messages are now supported for handling function calling.
+
+### Changed
+
+- StartConversation message: Updated to include the `tools` parameter.
+
 ## [0.0.5] - 2024-11-13
 
 ### Added

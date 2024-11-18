@@ -5,10 +5,12 @@ Wrapper library to interface with Flow Service API.
 
 import asyncio
 import copy
+import inspect
 import json
 import logging
 import os
-from typing import List
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Optional
 
 import httpx
 import pyaudio
@@ -27,6 +29,7 @@ from speechmatics_flow.models import (
     Interaction,
     ConnectionSettings,
 )
+from speechmatics_flow.tool_function_param import ToolFunctionParam
 from speechmatics_flow.utils import read_in_chunks, json_utf8
 
 LOGGER = logging.getLogger(__name__)
@@ -60,6 +63,7 @@ class WebsocketClient:
         self.websocket = None
         self.conversation_config = None
         self.audio_settings = None
+        self.tools = None
 
         self.event_handlers = {x: [] for x in ServerMessageType}
         self.middlewares = {x: [] for x in ClientMessageType}
@@ -70,6 +74,7 @@ class WebsocketClient:
         self.conversation_ended_wait_timeout = 5
         self._session_needs_closing = False
         self._audio_buffer = None
+        self._executor = ThreadPoolExecutor()
 
         # The following asyncio fields are fully instantiated in
         # _init_synchronization_primitives
@@ -124,6 +129,8 @@ class WebsocketClient:
             "audio_format": self.audio_settings.asdict(),
             "conversation_config": self.conversation_config.asdict(),
         }
+        if self.tools is not None:
+            msg["tools"] = self.tools
         self.session_running = True
         self._call_middleware(ClientMessageType.StartConversation, msg, False)
         LOGGER.debug(msg)
@@ -166,7 +173,7 @@ class WebsocketClient:
             self._conversation_ended.wait(), self.conversation_ended_wait_timeout
         )
 
-    async def _consumer(self, message, from_cli: False):
+    async def _consumer(self, message, from_cli=False):
         """
         Consumes messages and acts on them.
 
@@ -204,10 +211,18 @@ class WebsocketClient:
 
         for handler in self.event_handlers[message_type]:
             try:
-                handler(copy.deepcopy(message))
+                if inspect.iscoroutinefunction(handler):
+                    await handler(copy.deepcopy(message))
+                else:
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(
+                        self._executor, handler, copy.deepcopy(message)
+                    )
             except ForceEndSession:
                 LOGGER.warning("Session was ended forcefully by an event handler")
                 raise
+            except Exception as e:
+                LOGGER.error(f"Unhandled exception in {handler=}: {e=}")
 
         if message_type == ServerMessageType.ConversationStarted:
             self._flag_conversation_started()
@@ -262,7 +277,7 @@ class WebsocketClient:
             stream.close()
             _pyaudio.terminate()
 
-    async def _consumer_handler(self, from_cli: False):
+    async def _consumer_handler(self, from_cli=False):
         """
         Controls the consumer loop for handling messages from the server.
 
@@ -492,6 +507,7 @@ class WebsocketClient:
         audio_settings: AudioSettings = AudioSettings(),
         conversation_config: ConversationConfig = None,
         from_cli: bool = False,
+        tools: Optional[List[ToolFunctionParam]] = None,
     ):
         """
         Begin a new recognition session.
@@ -508,6 +524,9 @@ class WebsocketClient:
         :param conversation_config: Configuration for the conversation.
         :type conversation_config: models.ConversationConfig
 
+        :param tools: Optional list of tool functions.
+        :type tools: List[ToolFunctionParam]
+
         :raises Exception: Can raise any exception returned by the
             consumer/producer tasks.
         """
@@ -515,6 +534,7 @@ class WebsocketClient:
         self.server_seq_no = 0
         self.conversation_config = conversation_config
         self.audio_settings = audio_settings
+        self.tools = tools
 
         await self._init_synchronization_primitives()
 
