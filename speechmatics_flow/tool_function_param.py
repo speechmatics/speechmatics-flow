@@ -22,7 +22,9 @@ Example:
     dict(tool_function)
 """
 
-from typing import Literal, Optional, Dict, List, Required, TypedDict
+from typing import Literal, Optional, Dict, List, TypedDict
+
+from typing_extensions import Required
 
 
 class Property(TypedDict):
