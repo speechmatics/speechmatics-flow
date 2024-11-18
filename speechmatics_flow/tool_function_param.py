@@ -22,9 +22,14 @@ Example:
     dict(tool_function)
 """
 
+import sys
+
 from typing import Literal, Optional, Dict, List, TypedDict
 
-from typing_extensions import Required
+if sys.version_info < (3, 11):
+    from typing_extensions import Required
+else:
+    from typing import Required
 
 
 class Property(TypedDict):
