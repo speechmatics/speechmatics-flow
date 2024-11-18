@@ -94,6 +94,10 @@ class ClientMessageType(str, Enum):
     AudioEnded = "AudioEnded"
     """Indicates audio input has finished."""
 
+    ToolResult = "ToolResult"
+    """Client response to :py:attr:`ServerMessageType.ToolInvoke`, containing
+    the result of the function call."""
+
 
 class ServerMessageType(str, Enum):
     # pylint: disable=invalid-name
@@ -133,7 +137,7 @@ class ServerMessageType(str, Enum):
 
     AddAudio = "AddAudio"
     """Implicit name for all outbound binary messages. The client confirms
-    receipt by sending an :py:attr:`ServerMessageType.AudioReceived` message."""
+    receipt by sending an :py:attr:`ClientMessageType.AudioReceived` message."""
 
     audio = "audio"
     """Message contains binary data"""
@@ -147,6 +151,11 @@ class ServerMessageType(str, Enum):
 
     ConversationEnded = "ConversationEnded"
     """Message indicates the session ended."""
+
+    ToolInvoke = "ToolInvoke"
+    """Indicates invocation of a function call. The client responds by sending
+    an :py:attr:`ClientMessageType.ToolResult` message.
+    """
 
     Info = "Info"
     """Indicates a generic info message."""
