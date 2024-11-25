@@ -340,6 +340,7 @@ class WebsocketClient:
             format=pyaudio.paInt16,
             channels=1,
             rate=self.audio_settings.sample_rate,
+            frames_per_buffer=128,
             output=True,
         )
         try:
