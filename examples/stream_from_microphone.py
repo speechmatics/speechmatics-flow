@@ -72,7 +72,12 @@ async def main():
         asyncio.create_task(audio_playback()),
     ]
 
-    await asyncio.wait(tasks)
+    (done, pending) = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+
+    for task in done:
+        exc = task.exception()
+        if exc:
+            raise task.exception()
 
 
 # Run the main event loop

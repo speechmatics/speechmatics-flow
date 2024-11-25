@@ -43,9 +43,9 @@ class Store:
         }
         self.order: Dict[str, int] = {}
 
-    def items_list(self) -> Dict[str, int]:
+    def items_list(self) -> str:
         """Returns the current inventory."""
-        return self.inventory
+        return str(self.inventory)
 
     def create_order(self, item: str, quantity: str) -> str:
         """Creates an order with a specific item and quantity."""
@@ -87,11 +87,11 @@ class Store:
         self.order.clear()
         return "Your order has been canceled."
 
-    def submit_order(self) -> Dict[str, int]:
+    def submit_order(self) -> str:
         """Submits the current order."""
         order = self.order.copy()
         self.order.clear()
-        return order
+        return str(order)
 
 
 # Create an asyncio queue to store audio data
@@ -297,7 +297,12 @@ async def main():
         asyncio.create_task(audio_playback()),
     ]
 
-    await asyncio.wait(tasks)
+    (done, pending) = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+
+    for task in done:
+        exc = task.exception()
+        if exc:
+            raise task.exception()
 
 
 # Run the main event loop
