@@ -23,6 +23,9 @@ Windows users may need to run the install command with an extra flag:
 python setup.py install --user
 ```
 
+Instructions on how to create an account and generate an API
+key can be found here: https://docs.speechmatics.com/flow/getting-started#set-up
+
 ## Example command-line usage
 
 - Setting URLs for connecting to flow service. These values can be used in places of the --url flag:
@@ -30,7 +33,7 @@ python setup.py install --user
 *Note: Requires access to microphone
 
  ```bash
- speechmatics-flow --url $URL --auth-token $TOKEN --ssl-mode insecure
+ speechmatics-flow --auth-token $TOKEN --ssl-mode insecure
  ```
 
 ### Change Assistant (Amelia → Humphrey)
@@ -38,7 +41,7 @@ python setup.py install --user
 To set the assistant to *Humphrey* instead of *Amelia* run this command:
 
 ```bash
-speechmatics-flow --url $URL --auth-token $TOKEN --ssl-mode insecure --assistant humphrey
+speechmatics-flow --auth-token $TOKEN --ssl-mode insecure --assistant humphrey
 ```
 
 ### Load conversation_config from a config file
@@ -60,7 +63,7 @@ using the `--config-file` option
 ```
 
  ```bash
- speechmatics-flow --url $URL --auth-token $TOKEN --ssl-mode insecure --config-file conversation_config.json
+ speechmatics-flow --auth-token $TOKEN --ssl-mode insecure --config-file conversation_config.json
  ```
 
 > **Hint**: Why limit Humphrey? Try changing the template_variables to see what happens if he’s not a butler but

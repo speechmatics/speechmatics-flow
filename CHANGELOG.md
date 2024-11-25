@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.0.7] - 2024-11-18
+
+### Added
+
+- Client-side function calling example
+- Improved audio playback in examples
+- Added instructions on how to generate an API KEY and how to install pyaudio
+
+### Changed
+
+- Set default URL when running from CLI
+
 ## [0.0.6] - 2024-11-18
 
 ### Added

@@ -43,8 +43,9 @@ def get_arg_parser():
     )
     parser.add_argument(
         "--url",
+        default="wss://flow.api.speechmatics.com/v1/flow",
         type=str,
-        help="Websocket for Flow API URL (e.g. wss://flow.api.speechmatics.com/v1/flow",
+        help="Websocket url for Flow API",
     )
     parser.add_argument(
         "--auth-token",
