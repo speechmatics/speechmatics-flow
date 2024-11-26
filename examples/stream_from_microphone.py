@@ -1,6 +1,5 @@
 import asyncio
-import io
-import ssl
+import os
 import sys
 
 import pyaudio
@@ -14,17 +13,11 @@ from speechmatics_flow.models import (
     ServerMessageType,
 )
 
-AUTH_TOKEN = "YOUR TOKEN HERE"
-
 # Create a websocket client
-ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
 client = WebsocketClient(
     ConnectionSettings(
         url="wss://flow.api.speechmatics.com/v1/flow",
-        auth_token=AUTH_TOKEN,
-        ssl_context=ssl_context,
+        auth_token=os.getenv("SPEECHMATICS_API_KEY"),
     )
 )
 
@@ -34,32 +27,30 @@ audio_queue = asyncio.Queue()
 
 
 # Create a callback function to add binary messages to the audio queue
-def binary_msg_handler(msg: bytes):
-    if isinstance(msg, (bytes, bytearray)):
-        audio_queue.put_nowait(msg)
+async def binary_msg_callback(msg: bytes):
+    await audio_queue.put(msg)
 
 
 # Register the callback to be called when the client receives an audio message
-client.add_event_handler(ServerMessageType.audio, binary_msg_handler)
+client.add_event_handler(ServerMessageType.AddAudio, binary_msg_callback)
 
 
 async def audio_playback():
     """Continuously read from the audio queue and play audio back to the user."""
     p = pyaudio.PyAudio()
-    chunk_size = 1024
-    player_stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, output=True)
-
+    player_stream = p.open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=16000,
+        frames_per_buffer=128,
+        output=True,
+    )
     try:
         while True:
-            # Create a new playback buffer for each iteration
-            playback_buffer = io.BytesIO()
-
-            # Fill the buffer until it has enough data
-            while playback_buffer.tell() < chunk_size:
-                playback_buffer.write(await audio_queue.get())
-
-            # Write the full buffer contents to the player stream
-            player_stream.write(playback_buffer.getvalue())
+            audio = await audio_queue.get()
+            player_stream.write(audio)
+            # read from buffer at a constant rate
+            await asyncio.sleep(0.005)
     finally:
         player_stream.stop_stream()
         player_stream.close()
@@ -81,7 +72,12 @@ async def main():
         asyncio.create_task(audio_playback()),
     ]
 
-    await asyncio.gather(*tasks)
+    (done, pending) = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+
+    for task in done:
+        exc = task.exception()
+        if exc:
+            raise task.exception()
 
 
 # Run the main event loop
