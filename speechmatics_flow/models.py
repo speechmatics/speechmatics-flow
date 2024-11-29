@@ -7,7 +7,7 @@ import io
 import ssl
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, BinaryIO, IO, Union
 
 from speechmatics_flow.templates import TemplateID
 
@@ -32,6 +32,21 @@ class AudioSettings:
             "encoding": self.encoding,
             "sample_rate": self.sample_rate,
         }
+
+
+@dataclass
+class PlaybackSettings:
+    """Defines audio playback parameters."""
+
+    buffering: int = 10
+    """Buffer (in milliseconds) for audio received from the server before playback.
+    Increasing the buffer size can improve resilience to poor network conditions, at the cost of increased latency."""
+
+    sample_rate: int = 16000
+    """Sampling rate in hertz."""
+
+    chunk_size: int = 256
+    """Chunk size in bytes."""
 
 
 @dataclass
@@ -177,7 +192,9 @@ class Interaction:
     handling after streaming.
 
     Attributes:
-        stream (io.BufferedReader): The audio stream to be sent to the server.
+        stream (io.IOBase | BinaryIO | IO[bytes]): A file-like object for reading audio data.
+            This object should support binary read operations, such as `read()` and `readinto()`.
+            Suitable for audio streams that can be processed incrementally.
         callback (Optional[Callable]): An optional function to be executed when
             the audio stream ends. This can be used to delay connection closure
             or perform additional actions upon stream completion.
@@ -191,8 +208,6 @@ class Interaction:
         ```
     """
 
-    stream: io.BufferedReader
-    """The audio stream to be sent to the server."""
+    stream: Union[io.IOBase, BinaryIO, IO[bytes]]
 
     callback: Optional[Callable] = None
-    """An optional function to be executed when the audio stream ends."""
