@@ -105,6 +105,31 @@ def get_arg_parser():
         ),
     )
     parser.add_argument(
+        "--playback-buffering",
+        type=int,
+        default=10,
+        help=(
+            "Buffer (in milliseconds) for audio received from the server before playback. "
+            "Increasing the buffer size can improve resilience to poor network conditions, "
+            "at the cost of increased latency."
+        ),
+    ),
+    parser.add_argument(
+        "--playback-sample-rate",
+        type=int,
+        default=16_000,
+        help="The sample rate in Hz of the output audio.",
+    )
+    parser.add_argument(
+        "--playback-chunk-size",
+        type=int,
+        default=256,
+        help=(
+            "The size of each audio chunk, in bytes, to read from the audio buffer. "
+            "Increasing the chunk size may improve playback smoothness."
+        ),
+    )
+    parser.add_argument(
         "--print-json",
         default=False,
         action="store_true",
