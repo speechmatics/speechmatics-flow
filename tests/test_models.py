@@ -1,3 +1,5 @@
+from dataclasses import asdict
+
 import pytest
 
 from speechmatics_flow import models
@@ -38,4 +40,20 @@ def test_audio_settings(config, want):
 def test_conversation_config(config, want):
     conversation_config = models.ConversationConfig(**config)
     got = conversation_config.asdict()
+    assert got == want
+
+
+@pytest.mark.parametrize(
+    "config, want",
+    [
+        ({}, {"buffering": 10, "sample_rate": 16000, "chunk_size": 256}),
+        (
+            {"buffering": 20, "sample_rate": 8000, "chunk_size": 512},
+            {"buffering": 20, "sample_rate": 8000, "chunk_size": 512},
+        ),
+    ],
+)
+def test_playback_settings(config, want):
+    audio_settings = models.PlaybackSettings(**config)
+    got = asdict(audio_settings)
     assert got == want

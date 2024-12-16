@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.0.8] - 2024-11-29
+
+### Added
+
+- Introduced a new class to enable custom configuration of audio playback settings, offering greater flexibility for
+  fine-tuning audio playback.
+- The client now buffers audio to ensure smoother playback, especially in challenging network conditions.
+
+### Fixed
+
+- Resolved an issue with reading piped audio from stdin.
+
 ## [0.0.7] - 2024-11-25
 
 ### Added
