@@ -9,6 +9,7 @@ import inspect
 import json
 import logging
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
@@ -22,12 +23,13 @@ from speechmatics_flow.exceptions import (
     ConversationError,
 )
 from speechmatics_flow.models import (
-    ClientMessageType,
-    ServerMessageType,
     AudioSettings,
+    ClientMessageType,
+    ConnectionSettings,
     ConversationConfig,
     Interaction,
-    ConnectionSettings,
+    PlaybackSettings,
+    ServerMessageType,
 )
 from speechmatics_flow.tool_function_param import ToolFunctionParam
 from speechmatics_flow.utils import read_in_chunks, json_utf8
@@ -63,6 +65,7 @@ class WebsocketClient:
         self.websocket = None
         self.conversation_config = None
         self.audio_settings = None
+        self.playback_settings = None
         self.tools = None
 
         self.event_handlers = {x: [] for x in ServerMessageType}
@@ -73,13 +76,15 @@ class WebsocketClient:
         self.session_running = False
         self.conversation_ended_wait_timeout = 5
         self._session_needs_closing = False
-        self._audio_buffer = None
+        self._audio_buffer = bytearray()
+        self._audio_buffer_lock = asyncio.Lock()
         self._executor = ThreadPoolExecutor()
 
         # The following asyncio fields are fully instantiated in
         # _init_synchronization_primitives
         self._conversation_started = asyncio.Event
         self._conversation_ended = asyncio.Event
+        self._response_started = asyncio.Event
         # Semaphore used to ensure that we don't send too much audio data to
         # the server too quickly and burst any buffers downstream.
         self._buffer_semaphore = asyncio.BoundedSemaphore
@@ -91,6 +96,7 @@ class WebsocketClient:
         """
         self._conversation_started = asyncio.Event()
         self._conversation_ended = asyncio.Event()
+        self._response_started = asyncio.Event()
         self._buffer_semaphore = asyncio.BoundedSemaphore(
             self.connection_settings.message_buffer_size
         )
@@ -98,17 +104,26 @@ class WebsocketClient:
     def _flag_conversation_started(self):
         """
         Handle a
-        :py:attr:`models.ClientMessageType.ConversationStarted`
+        :py:attr:`models.ServerMessageType.ConversationStarted`
         message from the server.
         This updates an internal flag to mark the session started
         as started meaning, AddAudio is now allowed.
         """
         self._conversation_started.set()
 
+    def _flag_response_started(self):
+        """
+        Handle a
+        :py:attr:`models.ServerMessageType.ResponseStarted`
+        message from the server.
+        This updates an internal flag to mark that the server started sending audio.
+        """
+        self._response_started.set()
+
     def _flag_conversation_ended(self):
         """
         Handle a
-        :py:attr:`models.ClientMessageType.ConversationEnded`
+        :py:attr:`models.ServerMessageType.ConversationEnded`
         message from the server.
         This updates an internal flag to mark the session ended
         and server connection is closed
@@ -158,7 +173,7 @@ class WebsocketClient:
         msg = {
             "message": ClientMessageType.AudioReceived,
             "seq_no": self.server_seq_no,
-            "buffering": 0.01,  # 10ms
+            "buffering": self.playback_settings.buffering / 1000,
         }
         self._call_middleware(ClientMessageType.AudioReceived, msg, False)
         LOGGER.debug(msg)
@@ -169,9 +184,12 @@ class WebsocketClient:
         Waits for :py:attr:`models.ClientMessageType.ConversationEnded`
         message from the server.
         """
-        await asyncio.wait_for(
-            self._conversation_ended.wait(), self.conversation_ended_wait_timeout
-        )
+        try:
+            await asyncio.wait_for(
+                self._conversation_ended.wait(), self.conversation_ended_wait_timeout
+            )
+        except asyncio.TimeoutError:
+            LOGGER.warning("Timeout waiting for ConversationEnded message.")
 
     async def _consumer(self, message, from_cli=False):
         """
@@ -192,7 +210,8 @@ class WebsocketClient:
             await self.websocket.send(self._audio_received())
             # add an audio message to local buffer only when running from cli
             if from_cli:
-                await self._audio_buffer.put(message)
+                async with self._audio_buffer_lock:
+                    self._audio_buffer.extend(message)
             # Implicit name for all inbound binary messages.
             # We must manually set it for event handler subscribed
             # to `ServerMessageType.AddAudio` messages to work.
@@ -226,6 +245,13 @@ class WebsocketClient:
 
         if message_type == ServerMessageType.ConversationStarted:
             self._flag_conversation_started()
+        if message_type == ServerMessageType.ResponseStarted:
+            self._flag_response_started()
+        if message_type in [
+            ServerMessageType.ResponseCompleted,
+            ServerMessageType.ResponseInterrupted,
+        ]:
+            self._response_started.clear()
         elif message_type == ServerMessageType.AudioAdded:
             self._buffer_semaphore.release()
         elif message_type == ServerMessageType.ConversationEnded:
@@ -313,20 +339,31 @@ class WebsocketClient:
         Controls the producer loop for sending messages to the server.
         """
         await self._conversation_started.wait()
-        if interactions[0].stream.name == "<stdin>":
+        # Stream audio from microphone when running from the terminal and input is not piped
+        if (
+            sys.stdin.isatty()
+            and hasattr(interactions[0].stream, "name")
+            and interactions[0].stream.name == "<stdin>"
+        ):
             return await self._read_from_microphone()
 
         for interaction in interactions:
-            async for message in self._stream_producer(
-                interaction.stream, self.audio_settings.chunk_size
-            ):
-                try:
-                    await self.websocket.send(message)
-                except Exception as e:
-                    LOGGER.error(f"error sending message: {e}")
-                    return
-            if interaction.callback:
-                interaction.callback(self)
+            try:
+                async for message in self._stream_producer(
+                    interaction.stream, self.audio_settings.chunk_size
+                ):
+                    try:
+                        await self.websocket.send(message)
+                    except Exception as e:
+                        LOGGER.error(f"Error sending message: {e}")
+                        return
+
+                if interaction.callback:
+                    LOGGER.debug("Executing callback for interaction.")
+                    interaction.callback(self)
+
+            except Exception as e:
+                LOGGER.error(f"Error processing interaction: {e}")
 
         await self.websocket.send(self._end_of_audio())
         await self._wait_for_conversation_ended()
@@ -339,26 +376,38 @@ class WebsocketClient:
         stream = _pyaudio.open(
             format=pyaudio.paInt16,
             channels=1,
-            rate=self.audio_settings.sample_rate,
-            frames_per_buffer=128,
+            rate=self.playback_settings.sample_rate,
+            frames_per_buffer=self.playback_settings.chunk_size,
             output=True,
         )
+        chunk_size = self.playback_settings.chunk_size
+
         try:
-            while True:
-                if self._session_needs_closing or self._conversation_ended.is_set():
-                    break
+            while not self._session_needs_closing or self._conversation_ended.is_set():
+                # Wait for the server to start sending audio
+                await self._response_started.wait()
+
+                # Ensure enough data is added to the buffer before starting playback
+                await asyncio.sleep(self.playback_settings.buffering / 1000)
+
+                # Start playback
                 try:
-                    audio_message = await self._audio_buffer.get()
-                    stream.write(audio_message)
-                    self._audio_buffer.task_done()
-                    # read from buffer at a constant rate
-                    await asyncio.sleep(0.005)
+                    while self._audio_buffer:
+                        if len(self._audio_buffer) >= chunk_size:
+                            async with self._audio_buffer_lock:
+                                audio_chunk = bytes(self._audio_buffer[:chunk_size])
+                                self._audio_buffer = self._audio_buffer[chunk_size:]
+                            stream.write(audio_chunk)
+                        await asyncio.sleep(0.005)
                 except Exception as e:
-                    LOGGER.error(f"Error during audio playback: {e}")
+                    LOGGER.error(f"Error during audio playback: {e}", exc_info=True)
                     raise e
+
+        except asyncio.CancelledError:
+            LOGGER.info("Playback handler cancelled.")
         finally:
-            stream.close()
             stream.stop_stream()
+            stream.close()
             _pyaudio.terminate()
 
     def _call_middleware(self, event_name, *args):
@@ -482,7 +531,6 @@ class WebsocketClient:
 
         # Run the playback task that plays audio messages to the user when started from cli
         if from_cli:
-            self._audio_buffer = asyncio.Queue()
             tasks.append(asyncio.create_task(self._playback_handler()))
 
         (done, pending) = await asyncio.wait(
@@ -509,6 +557,7 @@ class WebsocketClient:
         conversation_config: ConversationConfig = None,
         from_cli: bool = False,
         tools: Optional[List[ToolFunctionParam]] = None,
+        playback_settings: PlaybackSettings = PlaybackSettings(),
     ):
         """
         Begin a new recognition session.
@@ -528,13 +577,18 @@ class WebsocketClient:
         :param tools: Optional list of tool functions.
         :type tools: List[ToolFunctionParam]
 
+        :param playback_settings: Configuration for the playback stream.
+        :type playback_settings: models.PlaybackSettings
+
         :raises Exception: Can raise any exception returned by the
             consumer/producer tasks.
+
         """
         self.client_seq_no = 0
         self.server_seq_no = 0
         self.conversation_config = conversation_config
         self.audio_settings = audio_settings
+        self.playback_settings = playback_settings
         self.tools = tools
 
         await self._init_synchronization_primitives()

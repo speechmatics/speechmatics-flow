@@ -23,6 +23,7 @@ from speechmatics_flow.models import (
     ServerMessageType,
     Interaction,
     ConnectionSettings,
+    PlaybackSettings,
 )
 from speechmatics_flow.templates import TemplateOptions
 
@@ -139,6 +140,25 @@ def get_audio_settings(args):
     return settings
 
 
+def get_playback_settings(args):
+    """
+    Helper function which returns a PlaybackSettings object based on the command
+    line options given to the program.
+
+    Args:
+        args (dict): Keyword arguments, typically from the command line.
+
+    Returns:
+        models.PlaybackSettings: Settings for the audio playback stream
+            in the connection.
+    """
+    return PlaybackSettings(
+        buffering=args.get("playback_buffering"),
+        sample_rate=args.get("playback_sample_rate"),
+        chunk_size=args.get("playback_chunk_size"),
+    )
+
+
 # pylint: disable=too-many-arguments,too-many-statements
 def add_printing_handlers(
     api,
@@ -248,7 +268,6 @@ def flow_main(args):
     :param args: arguments from parse_args()
     :type args: argparse.Namespace
     """
-    conversation_config = get_conversation_config(args)
     settings = get_connection_settings(args)
     api = WebsocketClient(settings)
     transcripts = Transcripts()
@@ -261,9 +280,10 @@ def flow_main(args):
     def run(stream):
         try:
             api.run_synchronously(
-                [Interaction(stream)],
-                get_audio_settings(args),
-                conversation_config,
+                interactions=[Interaction(stream)],
+                audio_settings=get_audio_settings(args),
+                conversation_config=get_conversation_config(args),
+                playback_settings=get_playback_settings(args),
                 from_cli=True,
             )
         except KeyboardInterrupt:
