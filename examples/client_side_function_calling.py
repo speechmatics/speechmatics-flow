@@ -9,17 +9,21 @@ import os
 import sys
 from typing import Any, Dict
 
-import pyaudio
+from dotenv import load_dotenv
 
+from speechmatics_flow.cli import Transcripts, add_printing_handlers
 from speechmatics_flow.client import WebsocketClient
 from speechmatics_flow.models import (
-    ConnectionSettings,
-    Interaction,
     AudioSettings,
-    ConversationConfig,
-    ServerMessageType,
     ClientMessageType,
+    ConnectionSettings,
+    ConversationConfig,
+    Interaction,
+    ServerMessageType,
 )
+from speechmatics_flow.playback import audio_playback
+
+load_dotenv()
 
 # Create a websocket client
 client = WebsocketClient(
@@ -185,34 +189,13 @@ async def send_response(response: Dict[str, Any]) -> None:
         print(f"Failed to send response: {e}")
 
 
-client.add_event_handler(ServerMessageType.AddAudio, binary_msg_callback)
-client.add_event_handler(ServerMessageType.ToolInvoke, order_callback)
-
-
-async def audio_playback():
-    """Continuously read from the audio queue and play audio back to the user."""
-    p = pyaudio.PyAudio()
-    player_stream = p.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=16000,
-        frames_per_buffer=128,
-        output=True,
-    )
-    try:
-        while True:
-            audio = await audio_queue.get()
-            player_stream.write(audio)
-            # read from buffer at a constant rate
-            await asyncio.sleep(0.005)
-    finally:
-        player_stream.stop_stream()
-        player_stream.close()
-        p.terminate()
-
-
 async def main():
     """Main function to run both the WebSocket client and audio playback."""
+    transcripts = Transcripts()
+    client.add_event_handler(ServerMessageType.AddAudio, binary_msg_callback)
+    client.add_event_handler(ServerMessageType.ToolInvoke, order_callback)
+    add_printing_handlers(client, transcripts, False)
+
     tasks = [
         # Start the WebSocket client and conversation
         asyncio.create_task(
@@ -294,7 +277,7 @@ async def main():
             )
         ),
         # Start the audio playback handler
-        asyncio.create_task(audio_playback()),
+        asyncio.create_task(audio_playback(audio_queue)),
     ]
 
     (done, pending) = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)

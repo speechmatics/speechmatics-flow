@@ -33,7 +33,7 @@ key can be found here: https://docs.speechmatics.com/flow/getting-started#set-up
 *Note: Requires access to microphone
 
  ```bash
- speechmatics-flow --auth-token $TOKEN --ssl-mode insecure
+ speechmatics-flow --auth-token $TOKEN
  ```
 
 ### Change Assistant (Amelia → Humphrey)
@@ -41,7 +41,7 @@ key can be found here: https://docs.speechmatics.com/flow/getting-started#set-up
 To set the assistant to *Humphrey* instead of *Amelia* run this command:
 
 ```bash
-speechmatics-flow --auth-token $TOKEN --ssl-mode insecure --assistant humphrey
+speechmatics-flow --auth-token $TOKEN --assistant humphrey
 ```
 
 ### Load conversation_config from a config file
@@ -63,7 +63,7 @@ using the `--config-file` option
 ```
 
  ```bash
- speechmatics-flow --auth-token $TOKEN --ssl-mode insecure --config-file conversation_config.json
+ speechmatics-flow --auth-token $TOKEN --config-file conversation_config.json
  ```
 
 > **Hint**: Why limit Humphrey? Try changing the template_variables to see what happens if he’s not a butler but
