@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.0.9] - 2025-01-24
+
+### Fixed
+
+- Issue with Flow latency on Linux
+
+### Changed
+
+- Examples load env vars from .env file
+- Examples now print user/agent transcripts
+
 ## [0.0.8] - 2024-11-29
 
 ### Added

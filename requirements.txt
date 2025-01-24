@@ -2,3 +2,4 @@ httpx==0.27.1
 pyaudio==0.2.14
 setuptools
 websockets>=10,<=13.1
+python-dotenv~=1.0

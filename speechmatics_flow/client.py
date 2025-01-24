@@ -88,6 +88,7 @@ class WebsocketClient:
         # Semaphore used to ensure that we don't send too much audio data to
         # the server too quickly and burst any buffers downstream.
         self._buffer_semaphore = asyncio.BoundedSemaphore
+        self._loop = None
 
     async def _init_synchronization_primitives(self):
         """
@@ -100,6 +101,7 @@ class WebsocketClient:
         self._buffer_semaphore = asyncio.BoundedSemaphore(
             self.connection_settings.message_buffer_size
         )
+        self._loop = asyncio.get_running_loop()
 
     def _flag_conversation_started(self):
         """
@@ -233,8 +235,7 @@ class WebsocketClient:
                 if inspect.iscoroutinefunction(handler):
                     await handler(copy.deepcopy(message))
                 else:
-                    loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(
+                    await self._loop.run_in_executor(
                         self._executor, handler, copy.deepcopy(message)
                     )
             except ForceEndSession:
@@ -277,6 +278,13 @@ class WebsocketClient:
             rate=self.audio_settings.sample_rate,
             input=True,
         )
+
+        async def async_stream_read():
+            # audio_chunk size is 128 * 2 = 256 bytes which is about 8ms
+            return await self._loop.run_in_executor(
+                self._executor, stream.read, 128, False
+            )
+
         try:
             while True:
                 if self._session_needs_closing or self._conversation_ended.is_set():
@@ -287,14 +295,11 @@ class WebsocketClient:
                     timeout=self.connection_settings.semaphore_timeout_seconds,
                 )
 
-                # audio_chunk size is 128 * 2 = 256 bytes which is about 8ms
-                audio_chunk = stream.read(num_frames=128, exception_on_overflow=False)
+                audio_chunk = await async_stream_read()
 
                 self.client_seq_no += 1
                 self._call_middleware(ClientMessageType.AddAudio, audio_chunk, True)
                 await self.websocket.send(audio_chunk)
-                # send audio at a constant rate
-                await asyncio.sleep(0.01)
         except KeyboardInterrupt:
             await self.websocket.send(self._end_of_audio())
         finally:
@@ -377,10 +382,12 @@ class WebsocketClient:
             format=pyaudio.paInt16,
             channels=1,
             rate=self.playback_settings.sample_rate,
-            frames_per_buffer=self.playback_settings.chunk_size,
             output=True,
         )
         chunk_size = self.playback_settings.chunk_size
+
+        async def async_stream_write(chunk):
+            return await self._loop.run_in_executor(self._executor, stream.write, chunk)
 
         try:
             while not self._session_needs_closing or self._conversation_ended.is_set():
@@ -397,8 +404,7 @@ class WebsocketClient:
                             async with self._audio_buffer_lock:
                                 audio_chunk = bytes(self._audio_buffer[:chunk_size])
                                 self._audio_buffer = self._audio_buffer[chunk_size:]
-                            stream.write(audio_chunk)
-                        await asyncio.sleep(0.005)
+                            await async_stream_write(audio_chunk)
                 except Exception as e:
                     LOGGER.error(f"Error during audio playback: {e}", exc_info=True)
                     raise e
