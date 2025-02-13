@@ -91,6 +91,18 @@ class ConversationConfig:
         )
 
 
+@dataclass
+class DebugMode:
+    """Defines debug flags for monitoring and troubleshooting flow internals"""
+
+    llm: bool = False
+    """Optional Flag indicating whether to capture conversations between the LLM and flow-service in 
+    debug messages."""
+
+    def asdict(self):
+        return {"llm": self.llm}
+
+
 class ClientMessageType(str, Enum):
     # pylint: disable=invalid-name
     """Defines various messages sent from client to server."""
@@ -179,7 +191,10 @@ class ServerMessageType(str, Enum):
     """Indicates a generic warning message."""
 
     Error = "Error"
-    """Indicates n generic error message."""
+    """Indicates a generic error message."""
+
+    Debug = "Debug"
+    """Indicates a debug message based on the flag set in the StartConversation message"""
 
 
 @dataclass

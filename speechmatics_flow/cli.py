@@ -24,6 +24,7 @@ from speechmatics_flow.models import (
     Interaction,
     ConnectionSettings,
     PlaybackSettings,
+    DebugMode,
 )
 from speechmatics_flow.templates import TemplateOptions
 
@@ -159,6 +160,10 @@ def get_playback_settings(args):
     )
 
 
+def get_debug_mode_settings(args):
+    return DebugMode(llm=args.get("llm_debug_enabled"))
+
+
 # pylint: disable=too-many-arguments,too-many-statements
 def add_printing_handlers(
     api,
@@ -284,6 +289,7 @@ def flow_main(args):
                 audio_settings=get_audio_settings(args),
                 conversation_config=get_conversation_config(args),
                 playback_settings=get_playback_settings(args),
+                debug_mode=get_debug_mode_settings(args),
                 from_cli=True,
             )
         except KeyboardInterrupt:

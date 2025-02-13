@@ -30,6 +30,7 @@ from speechmatics_flow.models import (
     Interaction,
     PlaybackSettings,
     ServerMessageType,
+    DebugMode,
 )
 from speechmatics_flow.tool_function_param import ToolFunctionParam
 from speechmatics_flow.utils import read_in_chunks, json_utf8
@@ -67,6 +68,7 @@ class WebsocketClient:
         self.audio_settings = None
         self.playback_settings = None
         self.tools = None
+        self.debug_mode = None
 
         self.event_handlers = {x: [] for x in ServerMessageType}
         self.middlewares = {x: [] for x in ClientMessageType}
@@ -148,6 +150,10 @@ class WebsocketClient:
         }
         if self.tools is not None:
             msg["tools"] = self.tools
+
+        if self.debug_mode:
+            msg["debug"] = self.debug_mode.asdict()
+
         self.session_running = True
         self._call_middleware(ClientMessageType.StartConversation, msg, False)
         LOGGER.debug(msg)
@@ -564,6 +570,7 @@ class WebsocketClient:
         from_cli: bool = False,
         tools: Optional[List[ToolFunctionParam]] = None,
         playback_settings: PlaybackSettings = PlaybackSettings(),
+        debug_mode: DebugMode = None,
     ):
         """
         Begin a new recognition session.
@@ -586,6 +593,9 @@ class WebsocketClient:
         :param playback_settings: Configuration for the playback stream.
         :type playback_settings: models.PlaybackSettings
 
+        :param debug_mode: Configuration to receive debug messages from flow-service
+        :type debug_mode: models.DebugMode
+
         :raises Exception: Can raise any exception returned by the
             consumer/producer tasks.
 
@@ -596,6 +606,7 @@ class WebsocketClient:
         self.audio_settings = audio_settings
         self.playback_settings = playback_settings
         self.tools = tools
+        self.debug_mode = debug_mode
 
         await self._init_synchronization_primitives()
 

@@ -52,3 +52,18 @@ def test_get_conversation_config(args, exp_values):
     assert config.asdict() == exp_values, "Expecting {} but got {}".format(
         exp_values, config.asdict()
     )
+
+
+@mark.parametrize(
+    "args, exp_values",
+    [
+        param([], {"llm": False}),
+        param(["--llm-debug-enabled"], {"llm": True}),
+    ],
+)
+def test_get_debug_mode_settings(args, exp_values):
+    test_args = vars(cli.parse_args(args=args))
+    config = cli.get_debug_mode_settings(test_args)
+    assert (
+        config.asdict() == exp_values
+    ), f"Expecting {exp_values}, got {config.asdict()}"

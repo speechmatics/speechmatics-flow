@@ -153,6 +153,12 @@ def get_arg_parser():
         choices=[k for k in TemplateOptions.keys()],
         help="Choose your assistant.",
     )
+    parser.add_argument(
+        "--llm-debug-enabled",
+        default=False,
+        action="store_true",
+        help="Flag indicating whether to capture conversations between the LLM and flow-service in debug messages.",
+    )
 
     return parser
 

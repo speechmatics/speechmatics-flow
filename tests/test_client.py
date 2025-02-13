@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 import pytest
 from pytest import param
 
+from speechmatics_flow import DebugMode
 from speechmatics_flow.client import WebsocketClient
 from speechmatics_flow.models import (
     ServerMessageType,
@@ -33,16 +34,18 @@ def ws_client():
 
 
 @pytest.mark.parametrize(
-    "audio_format, conversation_config, tools, expected_start_message",
+    "audio_format, conversation_config, tools, debug_mode, expected_start_message",
     [
         param(
             AudioSettings(),
             ConversationConfig(),
             None,
+            DebugMode(),
             {
                 "message": ClientMessageType.StartConversation.value,
                 "audio_format": AudioSettings().asdict(),
                 "conversation_config": ConversationConfig().asdict(),
+                "debug": DebugMode().asdict(),
             },
             id="with default values",
         ),
@@ -50,6 +53,7 @@ def ws_client():
             AudioSettings(),
             ConversationConfig(),
             [TOOL_FUNCTION],
+            None,
             {
                 "message": ClientMessageType.StartConversation.value,
                 "audio_format": AudioSettings().asdict(),
@@ -58,6 +62,19 @@ def ws_client():
             },
             id="with default values and tools",
         ),
+        param(
+            AudioSettings(),
+            ConversationConfig(),
+            None,
+            DebugMode(llm=True),
+            {
+                "message": ClientMessageType.StartConversation.value,
+                "audio_format": AudioSettings().asdict(),
+                "conversation_config": ConversationConfig().asdict(),
+                "debug": DebugMode(llm=True).asdict(),
+            },
+            id="with default values and llm debug mode enabled",
+        ),
     ],
 )
 def test_start_conversation(
@@ -65,6 +82,7 @@ def test_start_conversation(
     audio_format: AudioSettings,
     conversation_config: ConversationConfig,
     tools: Optional[List[ToolFunctionParam]],
+    debug_mode,
     expected_start_message: Dict,
 ):
     handler_called = False
@@ -77,6 +95,7 @@ def test_start_conversation(
     ws_client.audio_settings = audio_format
     ws_client.conversation_config = conversation_config
     ws_client.tools = tools
+    ws_client.debug_mode = debug_mode
     start_conversation_msg = ws_client._start_conversation()
     assert start_conversation_msg == json.dumps(
         expected_start_message
