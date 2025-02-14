@@ -57,3 +57,17 @@ def test_playback_settings(config, want):
     audio_settings = models.PlaybackSettings(**config)
     got = asdict(audio_settings)
     assert got == want
+
+
+@pytest.mark.parametrize(
+    "config, want",
+    [
+        ({}, {"llm": False}),
+        ({"llm": False}, {"llm": False}),
+        ({"llm": True}, {"llm": True}),
+    ],
+)
+def test_debug_mode(config, want):
+    debug_mode_settings = models.DebugMode(**config)
+    got = debug_mode_settings.asdict()
+    assert got == want

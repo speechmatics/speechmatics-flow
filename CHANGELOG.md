@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.0] - 2025-02-13
+
+### Added
+
+- Added Debug mode
+  - Introduced a new debug field in `StartConversation`.
+  - When LLM debug mode is enabled, the client will receive debug messages with LLM request and response content
+
 ## [0.0.9] - 2025-01-24
 
 ### Fixed
