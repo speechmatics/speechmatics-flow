@@ -194,7 +194,7 @@ class ServerMessageType(str, Enum):
     """Indicates a generic error message."""
 
     Debug = "Debug"
-    """Indicates a debug message based on the flag set in the StartConversation message"""
+    """Indicates a debug message"""
 
 
 @dataclass
