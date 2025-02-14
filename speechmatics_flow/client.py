@@ -593,7 +593,7 @@ class WebsocketClient:
         :param playback_settings: Configuration for the playback stream.
         :type playback_settings: models.PlaybackSettings
 
-        :param debug_mode: Configuration to receive debug messages from flow-service
+        :param debug_mode: Configuration to receive debug messages from Flow
         :type debug_mode: models.DebugMode
 
         :raises Exception: Can raise any exception returned by the
