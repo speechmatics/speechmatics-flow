@@ -62,6 +62,7 @@ def test_playback_settings(config, want):
 @pytest.mark.parametrize(
     "config, want",
     [
+        ({}, {"llm": False}),
         ({"llm": False}, {"llm": False}),
         ({"llm": True}, {"llm": True}),
     ],
