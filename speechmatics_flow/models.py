@@ -100,7 +100,7 @@ class DebugMode:
     debug messages."""
 
     def asdict(self):
-        return {"llm": self.llm}
+        return asdict(self)
 
 
 class ClientMessageType(str, Enum):
