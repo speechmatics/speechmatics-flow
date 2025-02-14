@@ -82,7 +82,7 @@ def test_start_conversation(
     audio_format: AudioSettings,
     conversation_config: ConversationConfig,
     tools: Optional[List[ToolFunctionParam]],
-    debug_mode,
+    debug_mode: Optional[DebugMode],
     expected_start_message: Dict,
 ):
     handler_called = False
