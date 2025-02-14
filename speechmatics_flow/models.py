@@ -93,7 +93,7 @@ class ConversationConfig:
 
 @dataclass
 class DebugMode:
-    """Defines debug flags for monitoring and troubleshooting flow internals"""
+    """Defines debug flags for monitoring and troubleshooting Flow"""
 
     llm: bool = False
     """Optional Flag indicating whether to capture conversations between the LLM and flow-service in 
