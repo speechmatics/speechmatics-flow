@@ -157,7 +157,7 @@ def get_arg_parser():
         "--llm-debug-enabled",
         default=False,
         action="store_true",
-        help="Flag indicating whether to capture conversations between the LLM and flow-service in debug messages.",
+        help="Flag indicating whether to receive conversations between the LLM and the Flow backend in debug messages.",
     )
 
     return parser
