@@ -5,8 +5,10 @@ Helper functions used by the library.
 
 import asyncio
 import concurrent.futures
+import importlib.metadata
 import inspect
 import json
+from pathlib import Path
 
 
 def json_utf8(func):
@@ -50,3 +52,14 @@ async def read_in_chunks(stream, chunk_size):
         if not audio_chunk:
             break
         yield audio_chunk
+
+
+def get_version() -> str:
+    """Reads the version number from the package or VERSION file"""
+    try:
+        return importlib.metadata.version(__package__)
+    except importlib.metadata.PackageNotFoundError:
+        version_path = Path(__file__).resolve().parent.parent / "VERSION"
+        if version_path.exists():
+            return version_path.read_text(encoding="utf-8").strip()
+        return "0.0.0"

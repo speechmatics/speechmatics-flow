@@ -33,7 +33,7 @@ from speechmatics_flow.models import (
     DebugMode,
 )
 from speechmatics_flow.tool_function_param import ToolFunctionParam
-from speechmatics_flow.utils import read_in_chunks, json_utf8
+from speechmatics_flow.utils import read_in_chunks, json_utf8, get_version
 
 LOGGER = logging.getLogger(__name__)
 
@@ -652,9 +652,10 @@ async def get_temp_token(api_key):
     """
     Used to get a temporary token from management platform api
     """
+    version = get_version()
     mp_api_url = os.getenv("SM_MANAGEMENT_PLATFORM_URL", "https://mp.speechmatics.com")
     endpoint = f"{mp_api_url}/v1/api_keys?type=flow"
-    body = {"ttl": 300, "client_ref": "speechmatics-flow-python-client"}
+    body = {"ttl": 300, "sm-sdk": f"python-{version}"}
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     response = httpx.post(endpoint, json=body, headers=headers)
     response.raise_for_status()
