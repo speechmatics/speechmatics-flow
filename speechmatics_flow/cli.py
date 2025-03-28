@@ -26,7 +26,7 @@ from speechmatics_flow.models import (
     PlaybackSettings,
     DebugMode,
 )
-from speechmatics_flow.templates import TemplateOptions
+from speechmatics_flow.templates import TEMPLATE_NAME_TO_ID
 
 LOGGER = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ def get_conversation_config(
 
     # Command line arguments override values from config file
     if assistant := args.get("assistant"):
-        config["template_id"] = TemplateOptions.get(assistant)
+        config["template_id"] = TEMPLATE_NAME_TO_ID.get(assistant.lower(), assistant)
 
     return ConversationConfig(**config)
 

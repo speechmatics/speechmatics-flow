@@ -79,7 +79,7 @@ class ConnectionSettings:
 class ConversationConfig:
     """Defines configuration parameters for conversation requests."""
 
-    template_id: TemplateID = "default"
+    template_id: Union[TemplateID, str] = "default"
     """Name of a predefined template."""
 
     template_variables: Optional[Dict[str, str]] = None

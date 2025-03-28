@@ -5,8 +5,6 @@ Parsers used by the CLI to handle CLI arguments
 import argparse
 import logging
 
-from speechmatics_flow.templates import TemplateOptions
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -150,7 +148,6 @@ def get_arg_parser():
         "--assistant",
         default=None,
         type=str,
-        choices=[k for k in TemplateOptions.keys()],
         help="Choose your assistant.",
     )
     parser.add_argument(

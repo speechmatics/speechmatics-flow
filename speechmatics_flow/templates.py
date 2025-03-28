@@ -17,4 +17,4 @@ TemplateID = Literal[
 ]
 
 # Map user-friendly name to full TemplateID
-TemplateOptions = {t.name: t.value for t in Template}
+TEMPLATE_NAME_TO_ID = {member.name.lower(): member.value for member in Template}
