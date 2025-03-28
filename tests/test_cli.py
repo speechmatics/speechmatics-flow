@@ -24,9 +24,19 @@ TEMPLATE_VARS = {
             id="assistant amelia",
         ),
         param(
+            ["--assistant=AMELIA"],
+            {"template_id": Template.amelia.value},
+            id="assistant AMELIA",
+        ),
+        param(
             ["--assistant=humphrey"],
             {"template_id": Template.humphrey.value},
             id="assistant humphrey",
+        ),
+        param(
+            ["--assistant=demo-assistant"],
+            {"template_id": "demo-assistant"},
+            id="assistant demo",
         ),
         param(
             ["--config-file=tests/data/conversation_config.json"],
