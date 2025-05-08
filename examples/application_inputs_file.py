@@ -153,16 +153,12 @@ async def main():
     except KeyboardInterrupt:
         print("Shutting down...")
     finally:
-        # Signal the watcher thread to stop
         stop_watching.set()
         input_thread.join()
-
-        # Cancel all tasks
         for task in tasks:
             if not task.done():
                 task.cancel()
 
-        # Wait for tasks to be cancelled
         await asyncio.gather(*tasks, return_exceptions=True)
 
 

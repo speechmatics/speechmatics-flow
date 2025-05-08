@@ -68,24 +68,24 @@ def input_reader():
 
 
 # Function to process the input queue and send messages via WebSocket
-async def handle_keyboard_input():
+async def handle_input_queue():
     while True:
         # Check the regular queue in a non-blocking way
         try:
             # Use asyncio.sleep(0) to yield control back to the event loop regularly
             await asyncio.sleep(0.1)
+            if input_queue.empty():
+                continue
 
-            # Check if there's input to process (non-blocking)
-            if not input_queue.empty():
-                user_input = input_queue.get_nowait()
-                if user_input:
-                    # Create the message in the required format
-                    message = AddInput(input=user_input, immediate=True, interrupt_response=True).asdict()
-                    # Send the message through the WebSocket
-                    await client.websocket.send(json.dumps(message))
-                    print(f"Message sent: {json.dumps(message)}")
-                # Mark the task as done
-                input_queue.task_done()
+            user_input = input_queue.get_nowait()
+            if user_input:
+                # Create the message in the required format
+                message = AddInput(input=user_input, immediate=True, interrupt_response=True).asdict()
+                # Send the message through the WebSocket
+                await client.websocket.send(json.dumps(message))
+                print(f"Message sent: {json.dumps(message)}")
+            # Mark the task as done
+            input_queue.task_done()
         except queue.Empty:
             # Queue is empty, just continue
             pass
@@ -117,10 +117,8 @@ async def main():
                 ),
             )
         ),
-        # Start the audio playback handler
         asyncio.create_task(audio_playback(audio_queue)),
-        # Start the keyboard input handler (polls the queue)
-        asyncio.create_task(handle_keyboard_input()),
+        asyncio.create_task(handle_input_queue()),
     ]
 
     try:
@@ -132,15 +130,10 @@ async def main():
     except KeyboardInterrupt:
         print("Shutting down...")
     finally:
-        # Signal the input thread to stop
         stop_input_thread.set()
-
-        # Cancel all tasks
         for task in tasks:
             if not task.done():
                 task.cancel()
-
-        # Wait for tasks to be cancelled
         await asyncio.gather(*tasks, return_exceptions=True)
 
 
