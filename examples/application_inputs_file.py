@@ -64,7 +64,6 @@ class InputFileHandler:
         self.setup_file()
 
     def setup_file(self):
-        """Create the input file if it doesn't exist"""
         if not os.path.exists(self.input_file):
             with open(self.input_file, 'w') as f:
                 pass  # Create empty file
@@ -78,18 +77,12 @@ class InputFileHandler:
         while not stop_watching.is_set():
             try:
                 file_size = os.path.getsize(self.input_file)
-
-                # Check if file has grown
                 if file_size > self.last_position:
                     with open(self.input_file, 'r') as f:
-                        # Seek to the last position we read
                         f.seek(self.last_position)
-                        # Read new lines
-                        # Process each new line
                         for line in [line.strip() for line in f.readlines() if line.strip()]:
                             input_queue.put(line)
 
-                    # Update position
                     if self.clear_file:
                         open(self.input_file, 'w').close()
                         self.last_position = 0
