@@ -1,9 +1,10 @@
 """
-Example of using Application Inputs feature with Flow Api
+Example of using Application Inputs feature with Flow Api.
 
 This example is running a WebSocket client that connects to the Flow engine and sends audio data from the microphone.
-AddInput messages are sent from cli input, the experience is not great because the input is collected form the command
-line and the flow responses are printed to the command line.
+
+AddInput messages are sent from cli input, the experience is not great because the input is collected form
+the command line and the flow responses are printed to the command line.
 """
 
 import asyncio
