@@ -79,7 +79,7 @@ class ConnectionSettings:
 class ConversationConfig:
     """Defines configuration parameters for conversation requests."""
 
-    template_id: Union[TemplateID, str] = "default"
+    template_id: Union[TemplateID, str] = "0aecadb7-cbb4-4149-b869-6f825952e697:en::"
     """Name of a predefined template."""
 
     template_variables: Optional[Dict[str, str]] = None
@@ -103,6 +103,28 @@ class DebugMode:
         return asdict(self)
 
 
+@dataclass
+class AddInput:
+    """Defines a message to be sent to the LLM."""
+
+    input: str
+    """Input to be sent to the LLM."""
+
+    immediate: bool = False
+    """Flag indicating whether the input is immediate."""
+
+    interrupt_response: bool = False
+    """Flag indicating whether to interrupt the current response."""
+
+    def asdict(self):
+        return {
+            "message": "AddInput",
+            "input": self.input,
+            "interrupt_response": self.interrupt_response,
+            "immediate": self.immediate,
+        }
+
+
 class ClientMessageType(str, Enum):
     # pylint: disable=invalid-name
     """Defines various messages sent from client to server."""
@@ -124,6 +146,9 @@ class ClientMessageType(str, Enum):
     ToolResult = "ToolResult"
     """Client response to :py:attr:`ServerMessageType.ToolInvoke`, containing
     the result of the function call."""
+
+    AddInput = "AddInput"
+    """Application input message meant to be sent to the LLM."""
 
 
 class ServerMessageType(str, Enum):
