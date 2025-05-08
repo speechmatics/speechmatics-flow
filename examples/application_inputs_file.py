@@ -29,9 +29,7 @@ from speechmatics_flow.models import (
 )
 from speechmatics_flow.playback import audio_playback
 
-# Configuration
 INPUT_FILE = "input.txt"
-CLEAR_FILE_AFTER_READING = True
 
 load_dotenv()
 
@@ -57,53 +55,44 @@ async def binary_msg_callback(msg: bytes):
 
 
 class InputFileHandler:
-    def __init__(self, input_file=INPUT_FILE, clear_file=CLEAR_FILE_AFTER_READING):
+    def __init__(self, input_file=INPUT_FILE):
         self.last_position = 0
         self.input_file = input_file
-        self.clear_file = clear_file
         self.setup_file()
 
     def setup_file(self):
-        if not os.path.exists(self.input_file):
-            with open(self.input_file, 'w') as f:
-                pass  # Create empty file
-            print(f"Created input file: {self.input_file}")
-        else:
-            # If file exists, get its current size
-            self.last_position = os.path.getsize(self.input_file)
+        if os.path.exists(self.input_file):
             print(f"Using existing input file: {self.input_file}")
+            return
+        with open(self.input_file, 'w') as f:
+            pass  # Create empty file
+        print(f"Created input file: {self.input_file}")
 
     def process_file(self):
         while not stop_watching.is_set():
-            try:
-                file_size = os.path.getsize(self.input_file)
-                if file_size > self.last_position:
-                    with open(self.input_file, 'r') as f:
-                        f.seek(self.last_position)
-                        for line in [line.strip() for line in f.readlines() if line.strip()]:
-                            input_queue.put(line)
+            time.sleep(0.5)
+            file_size = os.path.getsize(self.input_file)
+            if file_size <= self.last_position:
+                continue
 
-                    if self.clear_file:
-                        open(self.input_file, 'w').close()
-                        self.last_position = 0
-                    else:
-                        self.last_position = file_size
-                time.sleep(0.5)
+            with open(self.input_file, 'r') as f:
+                f.seek(self.last_position)
+                for line in [line.strip() for line in f.readlines() if line.strip()]:
+                    input_queue.put(line)
 
-            except Exception as e:
-                print(f"Error reading input file: {e}")
-                break
+            self.last_position = file_size
 
 
 def start_file_watcher():
     print(f"Listening for input in file: {os.path.abspath(INPUT_FILE)}")
     print(f"Add your messages to {INPUT_FILE}, one message per line.")
     print("Messages will be sent when the file is saved.")
-    if CLEAR_FILE_AFTER_READING:
-        print("Note: The file will be cleared after reading.")
 
-    input_file = InputFileHandler(INPUT_FILE, CLEAR_FILE_AFTER_READING)
-    input_file.process_file()
+    input_file = InputFileHandler(INPUT_FILE)
+    try:
+        input_file.process_file()
+    except Exception as e:
+        print(f"Error processing input file: {e}")
 
 
 async def handle_input_queue():
@@ -111,15 +100,17 @@ async def handle_input_queue():
         try:
             await asyncio.sleep(0.1)
 
-            if not input_queue.empty():
-                user_input = input_queue.get_nowait()
-                if user_input:
-                    # Create the message in the required format
-                    message = AddInput(input=user_input, immediate=True, interrupt_response=True).asdict()
-                    # Send the message through the WebSocket
-                    await client.websocket.send(json.dumps(message))
+            if input_queue.empty():
+                continue
 
-                input_queue.task_done()
+            user_input = input_queue.get_nowait()
+            if user_input:
+                # Create the message in the required format
+                message = AddInput(input=user_input, immediate=True, interrupt_response=True).asdict()
+                # Send the message through the WebSocket
+                await client.websocket.send(json.dumps(message))
+                print(f"Message sent: {json.dumps(message)}")
+            input_queue.task_done()
 
         except asyncio.CancelledError:
             break
@@ -149,9 +140,7 @@ async def main():
                 ),
             )
         ),
-        # Start the audio playback handler
         asyncio.create_task(audio_playback(audio_queue)),
-        # Start the file input handler
         asyncio.create_task(handle_input_queue()),
     ]
 
