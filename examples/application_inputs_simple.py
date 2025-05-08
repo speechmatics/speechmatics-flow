@@ -1,3 +1,11 @@
+"""
+Example of using Application Inputs feature with Flow Api
+
+This example is running a WebSocket client that connects to the Flow engine and sends audio data from the microphone.
+AddInput messages are sent from cli input, the experience is not great because the input is collected form the command
+line and the flow responses are printed to the command line.
+"""
+
 import asyncio
 import os
 import queue
@@ -7,7 +15,6 @@ import threading
 
 from dotenv import load_dotenv
 
-from speechmatics_flow import AddInput
 from speechmatics_flow.cli import Transcripts, add_printing_handlers
 from speechmatics_flow.client import WebsocketClient
 from speechmatics_flow.models import (
@@ -16,6 +23,7 @@ from speechmatics_flow.models import (
     ConversationConfig,
     Interaction,
     ServerMessageType,
+    AddInput
 )
 from speechmatics_flow.playback import audio_playback
 
@@ -31,18 +39,15 @@ client = WebsocketClient(
 
 # Create an asyncio queue to store audio data
 audio_queue = asyncio.Queue()
+# Regular Python queue for thread-safe communication
+input_queue = queue.Queue()
+# Flag to signal when to stop the input thread
+stop_input_thread = threading.Event()
 
 
 # Create a callback function to add binary messages to the audio queue
 async def binary_msg_callback(msg: bytes):
     await audio_queue.put(msg)
-
-
-# Regular Python queue for thread-safe communication
-input_queue = queue.Queue()
-
-# Flag to signal when to stop the input thread
-stop_input_thread = threading.Event()
 
 
 # Function to read input in a separate thread
@@ -106,7 +111,9 @@ async def main():
             client.run(
                 interactions=[Interaction(sys.stdin.buffer)],
                 audio_settings=AudioSettings(),
-                conversation_config=ConversationConfig(),
+                conversation_config=ConversationConfig(
+                    template_id=os.environ.get("CONVERSATION_TEMPLATE_ID", "default"),
+                ),
             )
         ),
         # Start the audio playback handler
@@ -117,7 +124,6 @@ async def main():
 
     try:
         (done, pending) = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-
         for task in done:
             exc = task.exception()
             if exc:
@@ -137,7 +143,6 @@ async def main():
         await asyncio.gather(*tasks, return_exceptions=True)
 
 
-# Run the main event loop
 if __name__ == "__main__":
     try:
         asyncio.run(main())
