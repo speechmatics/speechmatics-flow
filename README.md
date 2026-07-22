@@ -1,13 +1,47 @@
 # speechmatics-flow
 
-Python client library and CLI for Speechmatics' Flow Service API.
+> [!IMPORTANT]
+> **This repository is legacy and is no longer maintained.**
+>
+> `speechmatics-flow` was the original Python client and CLI for the Speechmatics Flow API. It has been superseded and will not receive new features, fixes, or dependency updates. The repository remains online for reference only. Issues and pull requests are no longer monitored.
+
+## Building a voice agent with Speechmatics today?
+
+Don't start here. Start with the [Speechmatics SDKs](https://docs.speechmatics.com/integrations-and-sdks/sdks):
+
+- **Integrations**: [LiveKit](https://docs.speechmatics.com/integrations-and-sdks/livekit/), [Pipecat](https://docs.speechmatics.com/integrations-and-sdks/pipecat/), or [Vapi](https://docs.speechmatics.com/integrations-and-sdks/vapi). The fastest path to a production voice agent.
+- **Voice SDK**: [`speechmatics-voice`](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/voice) for custom pipelines, with built-in turn detection, segmentation, and diarization.
+
+Working examples live in the [Speechmatics Academy](https://github.com/speechmatics/speechmatics-academy).
+
+## Already running Flow?
+
+Flow bundled speech recognition, LLM orchestration, and text-to-speech behind a single WebSocket. The current Speechmatics stack is modular: the [Voice SDK](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/voice) handles the listening side (turn detection, segmentation, speaker diarization) and you pair it with the LLM and [TTS](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/tts) of your choice. The integrations above handle that orchestration for you.
+
+Key differences at a glance:
+
+| | Legacy Flow client (this repo) | Voice SDK |
+|---|---|---|
+| PyPI package | `speechmatics-flow` | `speechmatics-voice` |
+| Import path | `speechmatics_flow` | `speechmatics.voice` |
+| Client class | `WebsocketClient` | `VoiceAgentClient` |
+| Scope | STT, LLM, and TTS via the Flow API | STT layer for agents; bring your own LLM and TTS |
+| Source | this repository | [`speechmatics-python-sdk/sdk/voice`](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/voice) |
+
+> [!NOTE]
+> If you need the legacy client while you plan your migration, pin it explicitly: `pip install speechmatics-flow==0.1.2`. Newer versions of the `speechmatics-flow` package name on PyPI are not this client.
+
+---
+
+<details>
+<summary><strong>Legacy documentation</strong> (reference only, no longer updated)</summary>
 
 ## Getting started
 
 To install from PyPI:
 
 ```bash
-pip install speechmatics-flow
+pip install speechmatics-flow==0.1.2
 ```
 
 To install from source:
@@ -66,10 +100,9 @@ using the `--config-file` option
  speechmatics-flow --auth-token $TOKEN --config-file conversation_config.json
  ```
 
-> **Hint**: Why limit Humphrey? Try changing the template_variables to see what happens if he’s not a butler but
-> perhaps... a pirate, a celebrity chef, or a royal advisor. We won’t stop you. 🏴‍☠️
+</details>
 
 ## Support
 
-If you have any issues with this library or encounter any bugs then please get in touch with us at
-support@speechmatics.com.
+If you have questions about migrating away from this client, get in touch at
+support@speechmatics.com or join the [Speechmatics Discord](https://discord.gg/wHQaMFzQJX).
