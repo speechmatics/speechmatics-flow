@@ -7,28 +7,29 @@
 
 ## Building a voice agent with Speechmatics today?
 
-Don't start here. Start with the [Voice agents documentation](https://docs.speechmatics.com/voice-agents):
+Don't start here. Start with the [Speechmatics SDKs](https://docs.speechmatics.com/integrations-and-sdks/sdks):
 
-- **Integrations**: [LiveKit](https://docs.speechmatics.com/integrations-and-sdks/livekit), [Pipecat](https://docs.speechmatics.com/integrations-and-sdks/pipecat), or [Vapi](https://docs.speechmatics.com/integrations-and-sdks/vapi). The fastest path to a production voice agent.
+- **Integrations**: [LiveKit](https://docs.speechmatics.com/integrations-and-sdks/livekit/), [Pipecat](https://docs.speechmatics.com/integrations-and-sdks/pipecat/), or [Vapi](https://docs.speechmatics.com/integrations-and-sdks/vapi). The fastest path to a production voice agent.
 - **Voice SDK**: [`speechmatics-voice`](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/voice) for custom pipelines, with built-in turn detection, segmentation, and diarization.
 
 Working examples live in the [Speechmatics Academy](https://github.com/speechmatics/speechmatics-academy).
 
-## Already using this client with the Flow API?
+## Already running Flow?
 
-The maintained Flow client now lives in the [`speechmatics-python-sdk`](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/flow) monorepo. Follow the [migration guide](https://github.com/speechmatics/speechmatics-python-sdk/blob/main/sdk/flow/MIGRATION.md) to move from this client to the new one.
+Flow bundled speech recognition, LLM orchestration, and text-to-speech behind a single WebSocket. The current Speechmatics stack is modular: the [Voice SDK](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/voice) handles the listening side (turn detection, segmentation, speaker diarization) and you pair it with the LLM and [TTS](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/tts) of your choice. The integrations above handle that orchestration for you.
 
 Key differences at a glance:
 
-| | Legacy client (this repo) | New Flow SDK |
+| | Legacy Flow client (this repo) | Voice SDK |
 |---|---|---|
-| Import path | `speechmatics_flow` | `speechmatics.flow` |
-| Client class | `WebsocketClient` | `AsyncClient` |
-| PyPI versions | up to `0.1.2` | `1.0.0b0` and later |
-| Source | this repository | [`speechmatics-python-sdk/sdk/flow`](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/flow) |
+| PyPI package | `speechmatics-flow` | `speechmatics-voice` |
+| Import path | `speechmatics_flow` | `speechmatics.voice` |
+| Client class | `WebsocketClient` | `VoiceAgentClient` |
+| Scope | STT, LLM, and TTS via the Flow API | STT layer for agents; bring your own LLM and TTS |
+| Source | this repository | [`speechmatics-python-sdk/sdk/voice`](https://github.com/speechmatics/speechmatics-python-sdk/tree/main/sdk/voice) |
 
 > [!NOTE]
-> The `speechmatics-flow` package name on PyPI is shared between both clients. Versions up to and including `0.1.2` were published from this repository. Later versions are published from `speechmatics-python-sdk` and have a different import path and API surface. If you need the legacy client documented below, pin it explicitly: `pip install speechmatics-flow==0.1.2`.
+> If you need the legacy client while you plan your migration, pin it explicitly: `pip install speechmatics-flow==0.1.2`. Newer versions of the `speechmatics-flow` package name on PyPI are not this client.
 
 ---
 
@@ -104,4 +105,4 @@ using the `--config-file` option
 ## Support
 
 If you have questions about migrating away from this client, get in touch at
-support@speechmatics.com.
+support@speechmatics.com or join the [Speechmatics Discord](https://discord.gg/wHQaMFzQJX).
